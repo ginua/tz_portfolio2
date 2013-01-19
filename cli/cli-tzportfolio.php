@@ -62,11 +62,12 @@ foreach($appdata as $id => $app)
 	if(isset($data['tz_img_gallery_server'][0]))
 	{
 
-	$data['tz_attachments_file'] = array(	'name' => 	
+	/*$data['tz_attachments_file'] = array(	'name' => 	
 						array($data['tz_img_gallery_server'][0]),
 					      	'type' => array('image/jpeg'),
 						'tmp_name' => array($data['tz_img_gallery_server'][0]),
 						'size' =>  array(filesize($data['tz_img_gallery_server'][0])));
+	*/
 	$data['tz_img'] = $data['tz_img_gallery_server'][0];
 		
 	$data['state'] = 1;

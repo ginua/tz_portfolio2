@@ -1819,7 +1819,6 @@ function deleteAttachment(){
         if(!empty($file['name']))
 	{
 		echo 'client'.PHP_EOL;
-		exit(0);
             if(in_array(strtolower($file['type']),$arr))
 	    {
 
@@ -1905,8 +1904,6 @@ function deleteAttachment(){
         }
         else{
 
-		echo 'current'.PHP_EOL;
-		exit(0);
             if(isset($curfile)){
                 $curPath    = null;
                 $str2       = null;
@@ -2486,7 +2483,7 @@ function deleteAttachment(){
                 $imageUpload    = array('images'=>'','imagetitle'=>'');
 
                 // Store attachments
-                $attachFile         = $data['tz_attachments_file']; //JRequest::getVar('tz_attachments_file','','files','array');
+                $attachFile         = JRequest::getVar('tz_attachments_file','','files','array');
                 $attachHiddenFile   = JRequest::getVar('tz_attachments_hidden_file',array(),'post','array');
                 $attachHiddenTitle   = JRequest::getVar('tz_attachments_hidden_title',array(),'post','array');
 
@@ -2666,7 +2663,7 @@ function deleteAttachment(){
                 $attachFileTitle    = implode('///',$attachFileTitle);
                 /////end get
 
-                //$fileHover  = $data['tz_img_hover']; //JRequest::getVar('tz_img_hover', '', 'files','array');
+                $fileHover  = JRequest::getVar('tz_img_hover', '', 'files','array');
 
                 $file		= $data['tz_img']; //JRequest::getVar('tz_img', '', 'files','array');
 
@@ -2680,14 +2677,14 @@ function deleteAttachment(){
                 $value['imagetitle']    = '"'.$images -> title.'"';
                 //$gallery    = $this -> getGallery($file2,$post,$params,$task);
 
-                $value['images_hover']  = '" "'; //'"'.$this -> getImageHover($fileHover,$post['tz_img_hover_server'],$post,$task).'"';
+                $value['images_hover']  = '""'; //'"'.$this -> getImageHover($fileHover,$post['tz_img_hover_server'],$post,$task).'"';
 
-                $value['gallery']       = '" "'; //'"'.$gallery -> name.'"';
+                $value['gallery']       = '""'; //'"'.$gallery -> name.'"';
                 $value['gallerytitle']  = '""'; //'"'.$gallery -> title.'"';
 
                 //$video      = $this -> getVideo($post,$task);
 
-                $value['video']         = '" "';  //$db ->quote($video -> name);
+                $value['video']         = '""';  //$db ->quote($video -> name);
                 $value['videotitle']    = '""'; //'"'.$video -> title.'"';
 
                 $value['attachfiles']   = '"'.$attachFileName.'"';
