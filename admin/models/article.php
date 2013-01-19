@@ -445,7 +445,6 @@ class TZ_PortfolioModelArticle extends JModelAdmin
                     foreach($attachFileName as $item){
                         $fileName   = 'tz_portfolio_'.(time()+$i)
                             .'.'.JFile::getExt($item);
-                        $attachOld  = JFile::getName($item);
                         $srcPath    = JPATH_SITE.DS.'media'
                             .DS.$item;
                         $desPath    = JPATH_SITE.DS.'media'.DS
@@ -584,14 +583,13 @@ class TZ_PortfolioModelArticle extends JModelAdmin
                           .$imageName.'","'
                           .$row -> imagetitle.'","'.$imageHoverName.'","'
                           .$attachFiles.'","'
-                          .$attachTitle.'","'.$attachOld.'","'
-                          .$galleryName.'","'.$row -> gallerytitle.'","'
+                          .$attachTitle.'","'.$galleryName.'","'.$row -> gallerytitle.'","'
                           .$row -> video.'","'.$row -> videotitle.'","'.$videoThumb.'","'.$row -> type.'")';
             }
             if(count($values)>0){
                 $values    = implode(',',$values);
                 $query2 = 'INSERT INTO #__tz_portfolio_xref_content(`contentid`,`groupid`,`images`,`imagetitle`,'
-                          .'`images_hover`,`attachfiles`,`attachtitle`,`attachold`,`gallery`,`gallerytitle`,`video`,'
+                          .'`images_hover`,`attachfiles`,`attachtitle`,`gallery`,`gallerytitle`,`video`,'
                           .'`videotitle`,`videothumb`,`type`)'
                           .' VALUES '.$values;
                 $db -> setQuery($query2);
@@ -833,7 +831,7 @@ function deleteAttachment(){
     function getAttachment(){
         $data   = array();
         if($this -> contentid){
-            $query  = 'SELECT attachfiles,attachtitle,attachold FROM #__tz_portfolio_xref_content'
+            $query  = 'SELECT attachfiles,attachtitle FROM #__tz_portfolio_xref_content'
                 .' WHERE contentid = '.$this -> contentid;
             $db     = &JFactory::getDbo();
             $db -> setQuery($query);
@@ -845,15 +843,13 @@ function deleteAttachment(){
 
                 if(!empty($rows -> attachfiles)){
                    if(preg_match('/.*\/\/\/.*/i',$rows -> attachfiles,$match)){
-                        $attachFiles    = explode('///',$match[0]);
-                        $attachTitle    = explode('///',$rows -> attachtitle);
-                        $attachOld      = explode('///',$rows -> attachold);
+                        $attachFiles  = explode('///',$match[0]);
+                        $attachTitle  = explode('///',$rows -> attachtitle);
                         $i=0;
                         foreach($attachFiles as $item){
                             $fileName   = explode('/',$item);
-                            $data[$i] -> attachfiles    = $fileName[count($fileName)-1];
-                            $data[$i] -> attachtitle    = $attachTitle[$i];
-                            $data[$i] -> attachold      = $attachOld[$i];
+                            $data[$i] -> attachfiles = $fileName[count($fileName)-1];
+                            $data[$i] -> attachtitle  = $attachTitle[$i];
                             $i++;
                         }
                    }
@@ -861,7 +857,6 @@ function deleteAttachment(){
                        $fileName   = explode('/',$rows -> attachfiles);
                        $data[0] -> attachfiles  = $fileName[count($fileName)-1];
                        $data[0] -> attachtitle  = $rows -> attachtitle;
-                       $data[0] -> attachold    = $rows -> attachold;
                    }
                 }
             }
@@ -879,7 +874,7 @@ function deleteAttachment(){
         $data -> video -> code      = '';
         $data -> video -> type      = '';
         $data -> video -> title     = '';
-        $data -> type               = '';
+        $data -> type               = 'image';
         if($this -> contentid){
             $query  = 'SELECT * FROM #__tz_portfolio_xref_content'
                 .' WHERE contentid = '.$this -> contentid;
@@ -1067,7 +1062,7 @@ function deleteAttachment(){
                     }
                 }
 
-                $value  = null;
+                $value  = $param[0] -> fieldsid;
 
                 if($fieldEdits){
                     foreach($fieldEdits as $item){
@@ -1151,7 +1146,7 @@ function deleteAttachment(){
                     <dd class="warning message">
                         <ul>
                             <li>'
-            .JText::_('COM_TZ_PORTFOLIO_FIELD_GROUP_DESC').'</li>
+            .JText::_('Please select a fields group first to retrieve its related "Fields"...').'</li>
                         </ul>
                     </dd>
                 </dl>
@@ -1254,7 +1249,7 @@ function deleteAttachment(){
             return $fieldsgroup;
         }
 
-        $fieldsgroup  .= '<option value="0">'.JText::_('COM_TZ_PORTFOLIO_OPTION_INHERIT_CATEGORY').'</option>';
+        $fieldsgroup  .= '<option value="0">'.JText::_('Inherit category').'</option>';
 
         foreach($rows2 as $row){
             $fieldsgroup  = $fieldsgroup.'<option value="'.$row -> id.'"'
@@ -1594,10 +1589,15 @@ function deleteAttachment(){
     function getTagsId($tagsName=array()){
         $tagsName   = str_replace(array(';','/'),',',$tagsName);
         $tagsName   = explode(',',$tagsName);
+        foreach($tagsName as &$item){
+            $item   = '"'.$item.'"';
+        }
+        $tagsName   = implode(',',$tagsName);
 
         $tagsId = array();
 
-        $query  = 'SELECT * FROM #__tz_portfolio_tags';
+        $query  = 'SELECT * FROM #__tz_portfolio_tags'
+                  .' WHERE name IN('.$tagsName.')';
 
         $db     = &JFactory::getDbo();
         $db -> setQuery($query);
@@ -1609,18 +1609,8 @@ function deleteAttachment(){
         $rows   = $db -> loadObjectList();
 
         if(count($rows)>0){
-            foreach($rows as $row){
-                if(is_array($tagsName)){
-                    if(in_array(trim($row -> name),$tagsName)){
-                        $tagsId[]   = $row -> id;
-                    }
-                }
-                else{
-                    if($row -> name == $tagsName){
-                        $tagsId[]   = $row -> id;
-                    }
-                }
-            }
+            foreach($rows as $row)
+                $tagsId[]   = $row -> id;
         }
 
         return $tagsId;
@@ -1665,25 +1655,7 @@ function deleteAttachment(){
     }
 
     function getImageHover($fileClient,$fileServer = null,$data=null,$task=null){
-        $params = $this -> getState('params');
-        if(!$sizes  = $this -> getState('sizeImage')){
-            if($params -> get('tz_image_xsmall',100)){
-                $sizeImage['XS'] = (int) $params -> get('tz_image_xsmall',100);
-            }
-            if($params -> get('tz_image_small',200)){
-                $sizeImage['S'] = (int) $params -> get('tz_image_small',200);
-            }
-            if($params -> get('tz_image_medium',400)){
-                $sizeImage['M'] = (int) $params -> get('tz_image_medium',400);
-            }
-            if($params -> get('tz_image_large',600)){
-                $sizeImage['L'] = (int) $params -> get('tz_image_large',600);
-            }
-            if($params -> get('tz_image_xsmall',900)){
-                $sizeImage['XL'] = (int) $params -> get('tz_image_xlarge',900);
-            }
-            $sizes  = $sizeImage;
-        }
+        $sizes  = $this -> getState('sizeImage');
 
         if($data){
             if(isset($data['tz_imgHover_current'])){
@@ -1826,25 +1798,7 @@ function deleteAttachment(){
         $imageGallery   = new stdClass();
         $imageGallery -> name   = '';
         $imageGallery -> title   = '';
-        $params = $this -> getState('params');
-        if(!$sizes  = $this -> getState('sizeImage')){
-            if($params -> get('tz_image_xsmall',100)){
-                $sizeImage['XS'] = (int) $params -> get('tz_image_xsmall',100);
-            }
-            if($params -> get('tz_image_small',200)){
-                $sizeImage['S'] = (int) $params -> get('tz_image_small',200);
-            }
-            if($params -> get('tz_image_medium',400)){
-                $sizeImage['M'] = (int) $params -> get('tz_image_medium',400);
-            }
-            if($params -> get('tz_image_large',600)){
-                $sizeImage['L'] = (int) $params -> get('tz_image_large',600);
-            }
-            if($params -> get('tz_image_xsmall',900)){
-                $sizeImage['XL'] = (int) $params -> get('tz_image_xlarge',900);
-            }
-            $sizes  = $sizeImage;
-        }
+        $sizes  = $this -> getState('sizeImage');
         $fileServer = $data['tz_img_gallery_server'];
 
         if(!empty($data['tz_image_title']))
@@ -1862,17 +1816,22 @@ function deleteAttachment(){
         $arr    = array('image/jpeg','image/jpg','image/bmp','image/gif','image/png','image/ico');
 
         //Client
-        if(!empty($file['name'])){
-            if(in_array(strtolower($file['type']),$arr)){
+        if(!empty($file['name']))
+	{
+		echo 'client'.PHP_EOL;
+		exit(0);
+            if(in_array(strtolower($file['type']),$arr))
+	    {
 
                 // Check size
-                if($file['size']<= TZ_IMAGE_SIZE){
+                if($file['size']<= TZ_IMAGE_SIZE)
+		{
 
                     $obj    = new JImage($file['tmp_name']);
                     $width  = $obj -> getWidth();
                     $height = $obj -> getHeight();
-                    $str    = $this -> imageUrl.'/cache/'.uniqid() .'tz_portfolio_'.time().'.'
-                              .JFile::getExt($file['name']);
+                    $str    = $this -> imageUrl.'/cache/'.uniqid() .'tz_portfolio_'.time().'.' .JFile::getExt($file['name']);
+
                     foreach($sizes as $key => $newWidth){
                         // Delete current Image file
                         if(isset($curfile) && !empty($curfile)){
@@ -1912,7 +1871,7 @@ function deleteAttachment(){
         }//Image from Client
         elseif(!empty($fileServer[0])){
             // Check size
-            $originalFile   = JPATH_SITE.DS.str_replace('/',DS,$fileServer[0]);
+            $originalFile   = $fileServer[0];
             $obj    = new JImage($originalFile);
             $width  = $obj -> getWidth();
             $height = $obj -> getHeight();
@@ -1946,6 +1905,8 @@ function deleteAttachment(){
         }
         else{
 
+		echo 'current'.PHP_EOL;
+		exit(0);
             if(isset($curfile)){
                 $curPath    = null;
                 $str2       = null;
@@ -2010,25 +1971,7 @@ function deleteAttachment(){
 
     function getGallery($files = null,$data = null,$params = null,$task=null){
 
-        $params = $this -> getState('params');
-        if(!$size    = $this -> getState('size')){
-            if($params -> get('tz_image_gallery_xsmall')){
-                $sizes['XS'] = (int) $params -> get('tz_image_gallery_xsmall');
-            }
-            if($params -> get('tz_image_gallery_small')){
-                $sizes['S'] = (int) $params -> get('tz_image_gallery_small');
-            }
-            if($params -> get('tz_image_gallery_medium')){
-                $sizes['M'] = (int) $params -> get('tz_image_gallery_medium');
-            }
-            if($params -> get('tz_image_gallery_large')){
-                $sizes['L'] = (int) $params -> get('tz_image_gallery_large');
-            }
-            if($params -> get('tz_image_gallery_xsmall')){
-                $sizes['XL'] = (int) $params -> get('tz_image_gallery_xlarge');
-            }
-            $size   = $sizes;
-        }
+        $size    = $this -> getState('size');
 
         $imageGallery   = new stdClass();
         $imageGallery -> name   = '';
@@ -2259,26 +2202,7 @@ function deleteAttachment(){
         $imageGallery -> title  = '';
         $imageGallery -> thumb  = '';
         $destPath   = JPATH_SITE.DS.str_replace('/',DS,$this ->imageUrl).DS.'cache';
-        
-        $params = $this -> getState('params');
-        if(!$size    = $this -> getState('size')){
-            if($params -> get('tz_image_gallery_xsmall')){
-                $sizes['XS'] = (int) $params -> get('tz_image_gallery_xsmall');
-            }
-            if($params -> get('tz_image_gallery_small')){
-                $sizes['S'] = (int) $params -> get('tz_image_gallery_small');
-            }
-            if($params -> get('tz_image_gallery_medium')){
-                $sizes['M'] = (int) $params -> get('tz_image_gallery_medium');
-            }
-            if($params -> get('tz_image_gallery_large')){
-                $sizes['L'] = (int) $params -> get('tz_image_gallery_large');
-            }
-            if($params -> get('tz_image_gallery_xsmall')){
-                $sizes['XL'] = (int) $params -> get('tz_image_gallery_xlarge');
-            }
-            $size   = $sizes;
-        }
+        $size   = $this -> getState('size');
 
         if(!JFolder::exists($destPath)){
             JFolder::create($destPath);
@@ -2531,8 +2455,307 @@ function deleteAttachment(){
 
     }
 
-    function _save($task=null){
 
+    function _saveCli($data){
+		// Clean the cache.
+		$this->cleanCache();
+            $params     = $this -> getState('params');
+
+            //$post       = JRequest::get('post');
+            $typeOfMedia    = $data['type_of_media']; //JRequest::getString('type_of_media');
+
+            $groupid    = $data['groupid']; //$post['groupid'];
+            $bool   = 0;
+            if(isset($groupid)){
+
+                // Create folder
+                // Check folder
+                $destPath   = JPATH_SITE.'/'.$this ->imageUrl;
+
+                if(!JFolder::exists($destPath)){
+                    JFolder::create($destPath);
+
+                }
+
+                if(!JFile::exists($destPath.'/index.html')){
+
+                    JFile::write($destPath.'/index.html',htmlspecialchars_decode('<!DOCTYPE html><title></title>'));
+                }
+
+                // Store image
+                $imageUpload    = array('images'=>'','imagetitle'=>'');
+
+                // Store attachments
+                $attachFile         = $data['tz_attachments_file']; //JRequest::getVar('tz_attachments_file','','files','array');
+                $attachHiddenFile   = JRequest::getVar('tz_attachments_hidden_file',array(),'post','array');
+                $attachHiddenTitle   = JRequest::getVar('tz_attachments_hidden_title',array(),'post','array');
+
+                $attachTitle        = JRequest::getVar('tz_attachments_title',array(),'post','array');
+
+                $attachFileName     = array();
+                $attachFileTitle    = array();
+
+                if($attachFile){
+                    if(count($attachFile)>0){
+                        $tzfolderPath       = JPATH_SITE.DS.'media'.DS.$this -> tzfolder;
+                        $attachFolderPath   = JPATH_SITE.DS.'media'.DS.$this -> tzfolder.DS.$this -> attachUrl;
+
+                        if(!JFolder::exists($tzfolderPath)){
+                            JFolder::create($tzfolderPath);
+                            JFile::write($tzfolderPath.DS.'index.html',htmlspecialchars_decode('<!DOCTYPE html><title></title>'));
+                        }
+                        if(!JFolder::exists($attachFolderPath)){
+                            JFolder::create($attachFolderPath);
+                            JFile::copy($tzfolderPath.DS.'index.html',$attachFolderPath.DS.'index.html');
+                        }
+                        $total  = count($attachFile) + count($attachHiddenFile);
+
+                        if(count($attachHiddenFile)>0){
+                            $i=0;
+                            foreach($attachHiddenFile as $item){
+                                $type               = '.'.JFile::getExt($item);
+
+                                        $fileName   = $item;
+
+                                $srcPath        = $attachFolderPath.DS.$item;
+                                $destPath       = $attachFolderPath.DS.$fileName;
+
+                                $attachFileName[]   = $this -> tzfolder.'/'.$this -> attachUrl.'/'.$fileName;
+
+                                if(!empty($attachHiddenTitle[$i]))
+                                    $attachFileTitle[]  = $attachHiddenTitle[$i];
+                                else
+                                    $attachFileTitle[]  = $fileName;
+
+                                    if(!JFile::exists($destPath))
+                                        JFile::copy($srcPath,$destPath);
+
+                                $i++;
+                            }
+                        }
+
+                        $err    = array();
+                        $count  = 0;
+
+                        if(isset($attachFile['name']) && count($attachFile['name'])>0){
+                            $i=0;
+                            foreach($attachFile['name'] as $item){
+                                if(!empty($item)){
+                                    // Check file size
+                                    $type   = JFile::getExt($item);
+                                    $listType   = explode(',',$params -> get('tz_attach_type'));
+
+                                    if(!in_array($type,$listType)){
+                                        //$this -> setError('Unsupported this media type');
+                                        echo 'Unsupported this media type';
+                                        return false;
+                                    }
+                                    else{
+                                        if($attachFile['size'][$i] <= (100*1024*1024)){
+
+                                            $type               = '.'.$type;
+
+                                            $fileName           = uniqid().'tz_portfolio_'.(time() + $i + count($attachHiddenFile)+count($attachFile)).$type;
+                                            $destPath           = $attachFolderPath.DS.$fileName;
+
+                                            $attachFileName[]   = $this -> tzfolder.'/'.$this -> attachUrl.'/'.$fileName;
+
+                                            if(!empty($attachTitle[$i]))
+                                                $attachFileTitle[]  = $attachTitle[$i];
+                                            else
+                                                $attachFileTitle[]  = $fileName;
+
+                                            if(!JFile::exists($destPath))
+                                                JFile::copy($attachFile['tmp_name'][$i],$destPath);
+
+                                        }
+                                        else{
+                                            $err[]  = $attachFile['name'][$i];
+                                            $count++;
+                                        }
+				
+                                    }
+                                }
+                                $i++;
+                            }
+                            if(count($err)>0){
+                                $err    = implode(',',$err);
+                                //$this -> setError($count.' files: "'.$err.'" size too large');
+                                echo $count.' files: "'.$err.'" size too large';
+                                return false;
+                            }
+                        }
+
+                    }
+                }
+
+                /////////////////////////////////////////////
+
+                $tzFields     = array();
+
+               // get fields id from fields name
+                $m=0;
+                foreach($data as $key=>$val){
+                    if(preg_match('/tzfields.*/i',$key,$match)==1){
+
+                        $fieldsid   = str_replace('tzfields','',$key);
+
+                        // Get value extra fields
+						if($fieldsid){
+							if(is_array($val)){
+
+								foreach($val as $i => $row){
+
+									if(preg_match('/(@\[\{\(\&\*\_)[0-9]$/',$row,$match2)){
+										$stt = str_replace($match2[1],'',$match2[0]);
+										$optionField    = $this -> getOptionField($fieldsid,$stt);
+									}
+									else{
+                                        $optionField    = $this -> getOptionField($fieldsid,0);
+                                    }
+
+									if(!empty($row)){
+
+										if(preg_match('/(@\[\{\(\&\*\_)[0-9]$/',$row,$match2)){
+											$tzFields[] = '('.$this -> getState($this -> getName().'.id').','
+													  .$fieldsid.',\''.str_replace($match2[0],'',$row).'\',\''.$optionField -> image.'\')';
+										}
+										else
+											$tzFields[] = '('.$this -> getState($this -> getName().'.id').','
+														  .$fieldsid.',\''.(string) $row.'\',\''.$optionField -> image.'\')';
+
+									}
+								}
+							}
+							else{
+								if(!empty($val)){
+									if(preg_match('/(@\[\{\(\&\*\_)[0-9]$/',$val,$match2)){
+										$stt    = str_replace('@[{(&*_','',$match2[0]);
+										$optionField    = $this -> getOptionField($fieldsid,$stt);
+
+										$tzFields[] = '('.$this -> getState($this -> getName().'.id')
+												  .','.$fieldsid.',\''.str_replace($match2[0],'',$val).'\',\''.$optionField -> image.'\')';
+									}
+									else{
+										$optionField    = $this -> getOptionField($fieldsid,0);
+										if($optionField){
+											$tzFields[] = '('.$this -> getState($this -> getName().'.id')
+													  .','.$fieldsid.',\''.(string) $val.'\',\''.$optionField -> image.'\')';
+										}
+										else{
+											$tzFields[] = '('.$this -> getState($this -> getName().'.id')
+													  .','.$fieldsid.',\''.(string) $val.'\',\'\')';
+										}
+									}
+								}
+
+							}
+						}
+                        //////end get
+                    }
+
+
+                    $m++;
+                }
+
+                $db     = &JFactory::getDbo();
+
+                // Store fields group
+                //// Get images
+                $attachFileName     = implode('///',$attachFileName);
+                $attachFileTitle    = implode('///',$attachFileTitle);
+                /////end get
+
+                //$fileHover  = $data['tz_img_hover']; //JRequest::getVar('tz_img_hover', '', 'files','array');
+
+                $file		= $data['tz_img']; //JRequest::getVar('tz_img', '', 'files','array');
+
+                //$file2		= $data['tz_img_client']; //JRequest::getVar('tz_img_client', '', 'files','array');
+                $images     = $this -> getImage(null,$data);
+
+                $value['groupid']    = $data['groupid'];
+                $value['contentid']    = $this -> getState($this -> getName().'.id');
+
+                $value['images']        = '"'.$images -> name.'"';
+                $value['imagetitle']    = '"'.$images -> title.'"';
+                //$gallery    = $this -> getGallery($file2,$post,$params,$task);
+
+                $value['images_hover']  = '" "'; //'"'.$this -> getImageHover($fileHover,$post['tz_img_hover_server'],$post,$task).'"';
+
+                $value['gallery']       = '" "'; //'"'.$gallery -> name.'"';
+                $value['gallerytitle']  = '""'; //'"'.$gallery -> title.'"';
+
+                //$video      = $this -> getVideo($post,$task);
+
+                $value['video']         = '" "';  //$db ->quote($video -> name);
+                $value['videotitle']    = '""'; //'"'.$video -> title.'"';
+
+                $value['attachfiles']   = '"'.$attachFileName.'"';
+                $value['attachtitle']   = '"'.$attachFileTitle.'"';
+
+                $value['videothumb']    = '""';//$db ->quote($video -> thumb);
+
+
+
+                $value['type']    = '"'.$typeOfMedia.'"';
+                $value  = '('.implode(',',$value).')';
+
+                $query  = 'DELETE FROM #__tz_portfolio_xref_content WHERE contentid = '.$this -> getState($this -> getName().'.id');
+                $db -> setQuery($query);
+
+                if(!$db -> query()){
+                    $this -> setError($db -> getErrorMsg());
+                    return false;
+                }
+
+                $query  = 'INSERT INTO `#__tz_portfolio_xref_content`'
+                              .'(`groupid`,`contentid`,`images`,`imagetitle`,`images_hover`,`gallery`,`gallerytitle`,'
+                              .'`video`,`videotitle`,`attachfiles`,`attachtitle`,`videothumb`,`type`)'
+                              .' VALUES '.$value;
+		echo $query.PHP_EOL;
+                $db -> setQuery($query);
+                if(!$db -> query()){
+                    $this -> setError($db -> getErrorMsg());
+			echo $db->getErrorMsg().PHP_EOL;
+                    return false;
+                }
+                ///////////////////
+
+
+                // Store Tz fields
+                $query  = 'DELETE FROM #__tz_portfolio WHERE contentid = '.$this -> getState($this -> getName().'.id');
+                $db -> setQuery($query);
+
+                if(!$db -> query()){
+                    $this -> setError($db -> getErrorMsg());
+			echo $db->getErrorMsg().PHP_EOL;
+                    return false;
+                }
+
+                if(!empty($tzFields)){
+                    $tzFields   = (count($tzFields)>0)?implode(',',$tzFields):'(\'\',\'\',\'\')';
+
+                    $query  = 'INSERT INTO #__tz_portfolio(`contentid`,`fieldsid`,`value`,`images`)'
+                            .' VALUES'.$tzFields;
+
+                    $db -> setQuery($query);
+
+                    if(!$db -> query()){
+                        $this -> setError($db -> getErrorMsg());
+			echo $db->getErrorMsg().PHP_EOL;
+                        return false;
+                    }
+                }
+            }
+            //////////////////
+
+        // Tags
+        //$this -> _saveTags($this -> getState($this -> getName().'.id'),$post['tz_tags']);
+
+        return true;
+	}
+
+    function _save($task=null){
 			// Clean the cache.
 			$this->cleanCache();
             $params     = $this -> getState('params');
@@ -2588,8 +2811,7 @@ function deleteAttachment(){
                 // Store attachments
                 $attachFile         = JRequest::getVar('tz_attachments_file','','files','array');
                 $attachHiddenFile   = JRequest::getVar('tz_attachments_hidden_file',array(),'post','array');
-                $attachHiddenTitle  = JRequest::getVar('tz_attachments_hidden_title',array(),'post','array');
-                $attachHiddenOld    = JRequest::getVar('tz_attachments_hidden_old',array(),'post','array');
+                $attachHiddenTitle   = JRequest::getVar('tz_attachments_hidden_title',array(),'post','array');
 
                 $attachTitle        = JRequest::getVar('tz_attachments_title',array(),'post','array');
 
@@ -2613,9 +2835,8 @@ function deleteAttachment(){
 
                         if(count($attachHiddenFile)>0){
                             $i=0;
-                            foreach($attachHiddenFile as $i => $item){
+                            foreach($attachHiddenFile as $item){
                                 $type               = '.'.JFile::getExt($item);
-                                $attachOld[]      = $attachHiddenOld[$i];
 
                                 if($task == 'save2copy'){
                                     $fileName   = $item;
@@ -2635,8 +2856,7 @@ function deleteAttachment(){
                                 if(!empty($attachHiddenTitle[$i]))
                                     $attachFileTitle[]  = $attachHiddenTitle[$i];
                                 else
-                                    $attachFileTitle[]  = '';
-//                                    $attachFileTitle[]  = $fileName;
+                                    $attachFileTitle[]  = $fileName;
 
                                 if($task != 'save2copy'){
                                     if(!JFile::exists($destPath))
@@ -2666,7 +2886,6 @@ function deleteAttachment(){
                                         if($attachFile['size'][$i] <= (100*1024*1024)){
 
                                             $type               = '.'.$type;
-                                            $attachOld[]          = $attachFile['name'][$i];
 
                                             if($task == 'save2copy')
                                                 $fileName           = uniqid().'tz_portfolio_'.(time()+ count($attachHiddenFile) + $i).$type;
@@ -2679,8 +2898,7 @@ function deleteAttachment(){
                                             if(!empty($attachTitle[$i]))
                                                 $attachFileTitle[]  = $attachTitle[$i];
                                             else
-                                                $attachFileTitle[]  = '';
-//                                                $attachFileTitle[]  = $fileName;
+                                                $attachFileTitle[]  = $fileName;
 
                                             if(!JFile::exists($destPath))
                                                 JFile::copy($attachFile['tmp_name'][$i],$destPath);
@@ -2807,7 +3025,6 @@ function deleteAttachment(){
 
                 $value['attachfiles']   = '"'.$attachFileName.'"';
                 $value['attachtitle']   = '"'.$attachFileTitle.'"';
-                $value['attachold']     = '"'.implode('///',$attachOld).'"';
 
                 $value['videothumb']    = $db ->quote($video -> thumb);
 
@@ -2826,7 +3043,7 @@ function deleteAttachment(){
 
                 $query  = 'INSERT INTO `#__tz_portfolio_xref_content`'
                               .'(`groupid`,`contentid`,`images`,`imagetitle`,`images_hover`,`gallery`,`gallerytitle`,'
-                              .'`video`,`videotitle`,`attachfiles`,`attachtitle`,`attachold`,`videothumb`,`type`)'
+                              .'`video`,`videotitle`,`attachfiles`,`attachtitle`,`videothumb`,`type`)'
                               .' VALUES '.$value;
                 $db -> setQuery($query);
                 if(!$db -> query()){
@@ -2868,6 +3085,22 @@ function deleteAttachment(){
 
     }
 
+	public function saveCli($data)
+	{
+        	if(parent::save($data))
+		{
+            		!$this -> _saveCli($data);
+            		if (isset($data['featured'])) 
+			{
+                		$this->featured($this->getState($this->getName().'.id'), $data['featured']);
+            		}
+
+            		return true;
+		}
+
+		return false;
+	}
+
 	/**
 	 * Method to save the form data.
 	 *
@@ -2892,6 +3125,7 @@ function deleteAttachment(){
             $data['urls'] = (string)$registry;
 
         }
+
 
 
 		// Alter the title for save as copy
