@@ -34,8 +34,19 @@ $options        = array ( 'driver' => $jconfig->dbtype,
 
 $mainframe      =& JFactory::getApplication('administrator');
 
-$file = file_get_contents('/home/ec2-user/appdata.txt');
+$file = file_get_contents('/var/www/html/paper/appdata.txt');
 $appdata = json_decode($file);
+
+if(!isset($appdata))
+{
+	echo "I didn't find the json I needed"; 
+	exit(0);
+}
+else
+{
+	echo "Finished converting json data.".PHP_EOL;
+}
+	
 
 
 
